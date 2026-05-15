@@ -396,7 +396,7 @@
       mesh = new THREE.Group();
 
       const loader = new GLTFLoader();
-      loader.load(`assets/models/${spec.key}.glb`, (gltf) => {
+      loader.load(`./assets/models/${spec.key}.glb`, (gltf) => {
         const model = gltf.scene;
 
         // Dapatkan ukuran asli model
@@ -416,7 +416,7 @@
         // Tambahkan ke grup mesh
         mesh.add(model);
       }, undefined, (error) => {
-        console.error(`Gagal memuat assets/models/${spec.key}.glb:`, error);
+        console.error(`Gagal memuat ./assets/models/${spec.key}.glb:`, error);
       });
 
     } else if (spec.key === "saturn") {
@@ -424,7 +424,7 @@
       mesh = new THREE.Group();
 
       const loader = new GLTFLoader();
-      loader.load("assets/models/saturn.glb", (gltf) => {
+      loader.load("./assets/models/saturn.glb", (gltf) => {
         const saturnModel = gltf.scene;
 
         // Dapatkan ukuran asli model
@@ -515,7 +515,7 @@
   const moonMesh = new THREE.Group();
 
   const moonLoader = new GLTFLoader();
-  moonLoader.load("assets/models/moon.glb", (gltf) => {
+  moonLoader.load("./assets/models/moon.glb", (gltf) => {
     const moonModel = gltf.scene;
 
     // Dapatkan ukuran asli model
@@ -534,7 +534,7 @@
 
     moonMesh.add(moonModel);
   }, undefined, (error) => {
-    console.error("Gagal memuat assets/models/moon.glb:", error);
+    console.error("Gagal memuat ./assets/models/moon.glb:", error);
   });
   moonMesh.userData.selectable = true;
   moonMesh.userData.body = "moon";
