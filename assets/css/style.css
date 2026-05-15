@@ -1,0 +1,1242 @@
+/* ============================================================
+ *  STYLE.CSS — Tata Surya Interaktif
+ *  Berisi semua styling untuk halaman eksplorasi tata surya.
+ *  Dibagi ke beberapa section: Reset, Intro, Canvas, HUD,
+ *  Tooltip, Detail Panel, dan Overview Hint.
+ * ============================================================ */
+
+
+/* -----------------------------------------------
+ *  1. RESET & BASE STYLES
+ *  Menghapus margin/padding bawaan browser dan
+ *  menetapkan warna dasar serta font global.
+ * ----------------------------------------------- */
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  /* Tidak ada scroll — halaman 1 layar penuh */
+  background: #000;
+  /* Latar belakang hitam (luar angkasa) */
+  color: #e8eef5;
+  /* Warna teks default terang       */
+  font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+  /* Cegah gesture browser di mobile */
+  touch-action: none;
+  overscroll-behavior: none;
+  position: fixed;
+  width: 100%;
+  height: 100%;
+}
+
+
+/* -----------------------------------------------
+ *  2. INTRO OVERLAY
+ *  Layar pembuka (splash screen) yang menutupi
+ *  seluruh viewport sebelum scene Three.js siap.
+ *  Menggunakan transisi opacity untuk fade-out.
+ * ----------------------------------------------- */
+#intro {
+  position: fixed;
+  inset: 0;
+  /* Shorthand: top/right/bottom/left = 0 */
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: radial-gradient(ellipse at 50% 30%, #0a1020 0%, #000 55%);
+  pointer-events: none;
+  /* Tidak menghalangi klik di bawahnya */
+  transition: opacity 0.8s ease, visibility 0.8s;
+}
+
+/* State: intro sudah selesai — di-hide dengan fade-out */
+#intro.intro--done {
+  opacity: 0;
+  visibility: hidden;
+}
+
+/* Judul intro — tipis, uppercase, spasi lebar */
+#intro h1 {
+  margin: 0 0 0.5rem;
+  font-weight: 300;
+  letter-spacing: 0.35em;
+  text-transform: uppercase;
+  font-size: clamp(0.85rem, 2.5vw, 1.1rem);
+  opacity: 1;
+}
+
+/* Subtitle intro — warna lebih redup */
+#intro p {
+  margin: 0;
+  font-size: clamp(0.75rem, 2vw, 0.95rem);
+  color: #8fa3bc;
+  opacity: 1;
+}
+
+/* Garis dekoratif horizontal (animasi expand oleh GSAP) */
+#intro .line {
+  width: 0;
+  /* Mulai dari lebar 0, diperlebar via GSAP */
+  height: 1px;
+  background: linear-gradient(90deg, transparent, #4a90d9, transparent);
+  margin: 1.25rem 0;
+}
+
+
+/* -----------------------------------------------
+ *  3. CANVAS WRAPPER
+ *  Wadah untuk <canvas> Three.js.
+ *  Mengisi seluruh layar (100vh) tanpa scroll.
+ * ----------------------------------------------- */
+#canvas-wrap {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  width: 100%;
+  height: 100vh;
+  overflow: hidden;
+  background: #000;
+}
+
+/* Canvas mengisi seluruh wadahnya */
+#canvas-wrap canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+/* Elemen tak-terlihat yang membuat halaman bisa di-scroll. */
+#scroll-track {
+  position: relative;
+  z-index: 1;
+  height: 100vh;
+}
+
+/* -----------------------------------------------
+ *  4. FLOATING MENU
+ *  Menu melayang di pojok kiri untuk
+ *  mengatur opsi visual scene.
+ *  ====== HIDDEN SAAT INTRO ======
+ * ----------------------------------------------- */
+#floating-menu {
+  position: fixed;
+  z-index: 1000;
+  left: 20px;
+  top: 20px;
+  bottom: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  /* Tersembunyi saat awal (sebelum intro selesai) */
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(-10px);
+  transition: opacity 0.6s ease 0.2s, visibility 0.6s ease 0.2s, transform 0.6s ease 0.2s;
+  pointer-events: none;
+  /* agar container tidak nge-blok klik */
+}
+
+/* Muncul setelah intro selesai */
+#floating-menu.ui-ready {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(0);
+}
+
+.toolbar-btn {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  border: 1px solid rgba(120, 170, 255, 0.15);
+  background: rgba(10, 18, 34, 0.7);
+  backdrop-filter: blur(8px);
+  color: #aebfd4;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  pointer-events: auto;
+  /* enable click on buttons */
+  padding: 0;
+}
+
+.toolbar-btn:hover,
+.toolbar-btn.active {
+  background: rgba(20, 32, 56, 0.85);
+  color: #fff;
+  border-color: rgba(120, 170, 255, 0.4);
+}
+
+.toolbar-btn.hidden {
+  opacity: 0;
+  transform: scale(0.8) translateY(-10px);
+  pointer-events: none;
+  max-height: 0;
+  margin-top: -8px;
+  padding-top: 0;
+  padding-bottom: 0;
+  border-width: 0;
+}
+
+.toolbar-btn.primary-btn {
+  background: rgba(16, 28, 50, 0.85);
+  color: #d9e8ff;
+}
+
+.toolbar-menu {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  overflow: hidden;
+  max-height: 0;
+  opacity: 0;
+  margin-top: -8px;
+  transition: max-height 0.4s cubic-bezier(0.25, 1, 0.5, 1), opacity 0.3s ease, margin-top 0.3s ease;
+  pointer-events: none;
+}
+
+.toolbar-menu.open {
+  max-height: 200px;
+  opacity: 1;
+  margin-top: 0;
+  pointer-events: auto;
+}
+
+.layers-panel {
+  position: absolute;
+  top: 52px;
+  /* sejajar dengan tempat tombol layers berada */
+  left: 0;
+  /* menutupi area tombol layers */
+  background: rgba(22, 23, 27, 0.96);
+  backdrop-filter: blur(12px);
+  width: 220px;
+  padding: 20px;
+  border-radius: 5px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+  transform: translateY(-10px);
+  opacity: 0;
+  visibility: hidden;
+  transition: all 0.4s cubic-bezier(0.25, 1, 0.5, 1);
+  pointer-events: none;
+  z-index: 1050;
+}
+
+.layers-panel.open {
+  transform: translateY(0);
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+}
+
+.layers-header {
+  font-size: 1.05rem;
+  font-weight: 500;
+  color: #eaf2ff;
+  margin-bottom: 30px;
+  padding-bottom: 32px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+  transition: color 0.2s;
+  user-select: none;
+}
+
+.layers-header:hover {
+  color: #fff;
+}
+
+.layers-header::after {
+  content: '\276F';
+  /* Panah ke kanan > */
+  font-weight: bold;
+  font-size: 0.9rem;
+  color: #77a9ff;
+}
+
+.layers-content {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.layer-option {
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  font-size: 0.85rem;
+  color: #b8c8de;
+  user-select: none;
+  transition: color 0.2s ease;
+  position: relative;
+}
+
+.layer-option:hover {
+  color: #fff;
+}
+
+.layer-option input {
+  position: absolute;
+  opacity: 0;
+  cursor: pointer;
+  height: 0;
+  width: 0;
+}
+
+.custom-checkbox {
+  height: 18px;
+  width: 18px;
+  background-color: rgba(0, 0, 0, 0.4);
+  border: 1px solid rgba(100, 140, 200, 0.4);
+  border-radius: 4px;
+  margin-right: 12px;
+  position: relative;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+}
+
+.layer-option input:checked~.custom-checkbox {
+  background-color: #3a78ff;
+  border-color: #3a78ff;
+}
+
+.custom-checkbox:after {
+  content: "";
+  position: absolute;
+  display: none;
+  left: 5px;
+  top: 2px;
+  width: 4px;
+  height: 8px;
+  border: solid white;
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+}
+
+.layer-option input:checked~.custom-checkbox:after {
+  display: block;
+}
+
+
+/* -----------------------------------------------
+ *  4.5. TIME CONTROLS (NEW)
+ * ----------------------------------------------- */
+.time-controls-wrapper {
+  position: fixed;
+  z-index: 1000;
+  bottom: 80px;
+  /* Above HUD */
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.6s ease 0.3s, visibility 0.6s ease 0.3s;
+  pointer-events: none;
+}
+
+.time-controls-wrapper.ui-ready {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+}
+
+.time-panel {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  overflow: hidden;
+  max-height: 150px;
+  opacity: 1;
+  transition: max-height 0.4s cubic-bezier(0.25, 1, 0.5, 1), opacity 0.3s ease;
+  width: min(400px, 90vw);
+}
+
+.time-panel.collapsed {
+  max-height: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.time-display {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  margin-bottom: 20px;
+  position: relative;
+  z-index: 2;
+  padding: 0 10px;
+}
+
+.time-text {
+  font-size: 0.75rem;
+  color: #b8c8de;
+  letter-spacing: 0.05em;
+  font-family: monospace;
+}
+
+.time-status {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #ff9a2f;
+  /* Orange for paused */
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  transition: color 0.3s;
+}
+
+.time-status.status-play {
+  color: #aebfd4;
+}
+
+.slider-container {
+  position: relative;
+  width: 100%;
+  height: 40px;
+  cursor: pointer;
+  touch-action: none;
+  /* Prevent scrolling when dragging */
+}
+
+.slider-curve {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.custom-thumb {
+  position: absolute;
+  top: 5px;
+  /* Default center pos */
+  left: 50%;
+  width: 24px;
+  height: 24px;
+  background: rgba(20, 24, 34, 0.9);
+  border: 2px solid #555;
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  transition: border-color 0.2s, transform 0.1s;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5);
+}
+
+.custom-thumb.active {
+  border-color: #ff9a2f;
+  transform: translate(-50%, -50%) scale(1.1);
+}
+
+.thumb-inner {
+  width: 10px;
+  height: 10px;
+  background: #ff9a2f;
+  border-radius: 50%;
+  box-shadow: 0 0 10px #ff9a2f;
+}
+
+.time-toggle-btn {
+  background: transparent;
+  border: none;
+  color: #b8c8de;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  cursor: pointer;
+  padding: 4px 12px;
+  border-radius: 8px;
+  transition: all 0.2s ease;
+}
+
+
+.time-toggle-btn span {
+  font-size: 0.65rem;
+  letter-spacing: 0.15em;
+  font-weight: 500;
+}
+
+#time-toggle-icon {
+  transition: transform 0.3s ease;
+}
+
+.time-toggle-btn.collapsed #time-toggle-icon {
+  transform: rotate(180deg);
+}
+
+/* -----------------------------------------------
+ *  5. HUD (Heads-Up Display)
+ *  Panel petunjuk di bagian bawah layar.
+ *  Memberikan informasi kontrol kepada user
+ *  (hover, klik, scroll, dll).
+ *  ====== HIDDEN SAAT INTRO ======
+ * ----------------------------------------------- */
+#hud {
+  position: fixed;
+  z-index: 50;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  padding: 1rem 1.25rem 1.25rem;
+  pointer-events: none;
+  /* Tidak menghalangi interaksi pada canvas */
+  background: linear-gradient(to top, rgba(0, 0, 0, 0.65), transparent);
+  /* Tersembunyi saat awal (sebelum intro selesai) */
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(10px);
+  transition: opacity 0.6s ease 0.1s, visibility 0.6s ease 0.1s, transform 0.6s ease 0.1s;
+}
+
+/* Muncul setelah intro selesai */
+#hud.ui-ready {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(0);
+}
+
+/* Container teks HUD — dibatasi lebarnya & di-center */
+#hud-inner {
+  max-width: 640px;
+  margin: 0 auto;
+  text-align: center;
+}
+
+/* Badge keyboard shortcut (misal: Hover, Klik, dll) */
+#hud kbd {
+  display: inline-block;
+  padding: 0.15rem 0.45rem;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 4px;
+  font-size: 0.7rem;
+  color: #b8c5d6;
+}
+
+/* Teks deskripsi HUD */
+#hud p {
+  margin: 0.35rem 0 0;
+  font-size: 0.8rem;
+  color: #9aaabe;
+  line-height: 1.45;
+}
+
+/* Label fase sinematik (berubah sesuai scroll progress) */
+#phase-label {
+  font-size: 0.72rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #6d8ab8;
+}
+
+
+/* -----------------------------------------------
+ *  6. PLANET TOOLTIP
+ *  Nama planet yang mengikuti kursor mouse saat
+ *  hover di atas objek planet pada canvas.
+ * ----------------------------------------------- */
+#planet-tooltip {
+  position: fixed;
+  z-index: 60;
+  padding: 0.35rem 0.65rem;
+  border-radius: 6px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  color: #eaf2ff;
+  background: rgba(12, 22, 44, 0.88);
+  border: 1px solid rgba(120, 170, 255, 0.35);
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.45);
+  pointer-events: none;
+  /* Tooltip tidak boleh menangkap event mouse */
+  opacity: 0;
+  transform: translate(12px, 12px);
+  transition: opacity 0.12s ease;
+}
+
+/* State: tooltip terlihat saat ada planet di-hover */
+#planet-tooltip.visible {
+  opacity: 1;
+}
+
+
+/* -----------------------------------------------
+ *  7. DETAIL PANEL
+ *  Panel informasi detail planet yang muncul di
+ *  sisi kanan layar saat planet diklik / difokuskan.
+ *  Menggunakan glassmorphism (backdrop-filter & blur).
+ * ----------------------------------------------- */
+#detail-panel {
+  position: fixed;
+  z-index: 55;
+  right: 16px;
+  top: 50%;
+  --panel-y: -50%;
+  --panel-x: 0;
+  transform: translateY(var(--panel-y)) translateX(var(--panel-x));
+
+  width: 340px;
+  max-width: calc(100vw - 32px);
+  max-height: min(85vh, 600px);
+  background: rgba(14, 16, 20, 0.98);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(20px);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition: transform 0.6s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.4s, visibility 0.4s;
+}
+
+#detail-panel.open {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+}
+
+#detail-panel.collapsed {
+  --panel-x: calc(100% + 40px);
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* Header & Tabs */
+.detail-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: rgba(255, 255, 255, 0.03);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  padding: 0 4px 0 12px;
+  /* Perkecil padding kanan agar tombol pas di tepi */
+  height: 44px;
+}
+
+.detail-tabs {
+  display: flex;
+  height: 100%;
+}
+
+.detail-tab {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 14px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #777;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  transition: all 0.2s;
+}
+
+.detail-tab.active {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.05);
+  border-bottom-color: #3a78ff;
+}
+
+.detail-tab.disabled {
+  cursor: default;
+  opacity: 0.4;
+}
+
+.detail-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.detail-action-btn {
+  background: transparent;
+  border: none;
+  color: #888;
+  width: 40px;
+  /* Lebar area klik lebih besar */
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  border-radius: 4px;
+  transition: all 0.2s;
+  position: relative;
+  z-index: 5;
+  padding: 0;
+}
+
+.detail-action-btn svg {
+  pointer-events: none;
+  /* Cegah interupsi klik pada path SVG */
+}
+
+/* Tampilkan icon sesuai mode */
+.detail-action-btn .icon-mobile {
+  display: none;
+}
+
+.detail-action-btn .icon-desktop {
+  display: block;
+}
+
+@media (max-width: 1024px) {
+  .detail-action-btn .icon-mobile {
+    display: block;
+  }
+
+  .detail-action-btn .icon-desktop {
+    display: none;
+  }
+}
+
+.detail-action-btn.close-btn {
+  font-size: 1.6rem;
+  /* Sedikit lebih besar agar mudah diklik */
+  line-height: 1;
+  color: #888;
+}
+
+.detail-action-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+}
+
+/* Content Area */
+.detail-content {
+  padding: 24px;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.mobile-drag-handle {
+  display: none;
+  /* Sembunyikan di desktop */
+}
+
+.detail-meta {
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.15em;
+  color: #f7a22d;
+  /* Orange NASA style */
+  margin-bottom: 10px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.detail-meta::before {
+  content: '';
+  width: 8px;
+  height: 8px;
+  background: currentColor;
+  border-radius: 50%;
+}
+
+#detail-title {
+  font-size: 1.8rem;
+  font-weight: 700;
+  color: #fff;
+  margin: 0 0 20px 0;
+}
+
+.detail-divider {
+  width: 100%;
+  height: 1px;
+  background: rgba(255, 255, 255, 0.1);
+  margin-bottom: 20px;
+}
+
+.detail-section-title {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #999;
+  letter-spacing: 0.1em;
+  margin-bottom: 14px;
+}
+
+#detail-body {
+  font-size: 0.92rem;
+  line-height: 1.65;
+  color: #ccc;
+  margin: 0;
+}
+
+/* Expand Button (NASA Style >>) */
+.expand-detail-btn {
+  position: fixed;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%) translateX(100%);
+  z-index: 54;
+  width: 44px;
+  height: 56px;
+  background: rgba(20, 22, 28, 0.95);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-right: none;
+  border-radius: 8px 0 0 8px;
+  color: #aaa;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+  box-shadow: -5px 0 20px rgba(0, 0, 0, 0.4);
+}
+
+.expand-detail-btn.visible {
+  transform: translateY(-50%) translateX(0);
+}
+
+.expand-detail-btn:hover {
+  color: #fff;
+  width: 50px;
+}
+
+
+/* -----------------------------------------------
+ *  8. OVERVIEW HINT
+ *  Petunjuk kecil di atas layar (pill-shaped)
+ *  yang muncul saat user fokus pada planet, agar
+ *  tahu cara kembali ke tampilan ringkasan.
+ * ----------------------------------------------- */
+#overview-hint {
+  position: fixed;
+  z-index: 54;
+  left: 50%;
+  top: 14px;
+  transform: translateX(-50%);
+  padding: 0.35rem 0.75rem;
+  font-size: 0.72rem;
+  letter-spacing: 0.06em;
+  color: #9eb6d8;
+  background: rgba(8, 12, 28, 0.75);
+  border-radius: 999px;
+  border: 1px solid rgba(120, 160, 220, 0.25);
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.2s ease;
+  pointer-events: none;
+  max-width: calc(100vw - 32px);
+  text-align: center;
+}
+
+/* State: hint terlihat */
+#overview-hint.visible {
+  opacity: 1;
+  visibility: visible;
+}
+
+
+/* ===============================================================
+ *  9. RESPONSIVE MEDIA QUERIES
+ *  Breakpoints:
+ *    - <= 480px  : Mobile kecil (portrait phones)
+ *    - 481–768px : Mobile besar & Tablet portrait
+ *    - 769–1024px: Tablet landscape / laptop kecil
+ *    - >= 1440px : Desktop besar
+ * =============================================================== */
+
+/* ---------- KONTROL STATE GLOBAL UNTUK BOTTOM SHEET (<= 1024px) ---------- */
+@media (max-width: 1024px) {
+
+  /* Sembunyikan elemen lain saat panel detail terbuka agar tidak penuh */
+  body.detail-open #floating-menu,
+  body.detail-open .time-controls-wrapper,
+  body.detail-open #hud {
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    transition: opacity 0.4s ease, visibility 0.4s;
+  }
+
+  /* KECUALI jika panel sedang collapsed di mobile, munculkan kembali kontrol waktu */
+  body.detail-open #detail-panel.collapsed~.time-controls-wrapper {
+    opacity: 1;
+    visibility: visible;
+    pointer-events: auto;
+  }
+
+  /* Detail Panel as Bottom Sheet */
+  #detail-panel {
+    right: 0;
+    left: 0;
+    bottom: 0;
+    top: auto;
+    width: 100%;
+    max-width: 100%;
+    max-height: 50vh;
+    --panel-y: 100%;
+    --panel-x: 0;
+    transform: translateY(var(--panel-y));
+    border-radius: 20px 20px 0 0;
+    border: none;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+  }
+
+  #detail-panel.open {
+    --panel-y: 0;
+  }
+
+  #detail-panel.collapsed {
+    --panel-y: calc(100% - 48px);
+    opacity: 1;
+    visibility: visible;
+    pointer-events: auto;
+    cursor: pointer;
+  }
+
+  .mobile-drag-handle {
+    display: block;
+    width: 36px;
+    height: 4px;
+    background: rgba(255, 255, 255, 0.15);
+    border-radius: 2px;
+    margin: -10px auto 16px;
+    cursor: pointer;
+    flex-shrink: 0;
+  }
+
+  .expand-detail-btn {
+    display: none !important;
+  }
+
+  /* Floating Menu & HUD */
+  #floating-menu {
+    top: 12px;
+    left: 12px;
+  }
+
+  .toolbar-btn {
+    width: 38px;
+    height: 38px;
+  }
+
+  .layers-panel {
+    top: 48px;
+    left: 0;
+    width: min(220px, 80vw);
+  }
+
+  .time-controls-wrapper {
+    bottom: 80px;
+    left: 50%;
+    transform: translateX(-50%);
+  }
+
+  #hud {
+    padding: 0.5rem 0.65rem 0.7rem;
+  }
+
+  #hud p {
+    font-size: 0.68rem;
+    line-height: 1.3;
+  }
+
+  #overview-hint {
+    font-size: 0.6rem;
+    padding: 0.25rem 0.55rem;
+    top: 8px;
+  }
+
+  /* Planet labels: lebih kecil di mobile */
+  .planet-label {
+    font-size: 0.68rem;
+    padding: 0.25rem 0.5rem;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4);
+  }
+
+  /* Time controls: naikkan agar tidak tumpang tindih HUD */
+  .time-controls-wrapper {
+    bottom: 90px;
+  }
+}
+
+/* Khusus Mobile Portrait (Sangat Kecil) */
+@media (max-width: 480px) {
+  #detail-panel {
+    max-height: 55vh;
+  }
+
+  #hud p {
+    font-size: 0.6rem;
+  }
+
+  .time-status {
+    font-size: 0.85rem;
+  }
+
+  .planet-label {
+    font-size: 0.6rem;
+    padding: 0.2rem 0.4rem;
+  }
+
+  .time-controls-wrapper {
+    bottom: 85px;
+  }
+}
+
+
+
+/* ---------- Khusus HP sangat kecil (<= 360px) ---------- */
+@media (max-width: 360px) {
+
+  #intro h1 {
+    font-size: clamp(0.75rem, 5vw, 1rem);
+    letter-spacing: 0.25em;
+  }
+
+  #intro p {
+    font-size: clamp(0.62rem, 3.5vw, 0.82rem);
+  }
+
+  #hud {
+    padding: 0.4rem 0.5rem 0.55rem;
+  }
+
+  #hud p {
+    font-size: 0.6rem;
+  }
+
+  #phase-label {
+    font-size: 0.55rem;
+  }
+
+  #floating-menu {
+    left: 8px;
+    top: 8px;
+  }
+
+  .toolbar-btn {
+    width: 34px;
+    height: 34px;
+  }
+
+  .layers-panel {
+    top: 42px;
+    left: 0;
+    width: 200px;
+  }
+
+  .time-controls-wrapper {
+    bottom: 75px;
+  }
+
+  #detail-panel {
+    max-height: 38vh;
+  }
+
+  .detail-content {
+    padding: 16px;
+  }
+}
+
+
+/* ---------- TABLET PORTRAIT (601px – 768px) ---------- */
+@media (min-width: 601px) and (max-width: 768px) {
+
+  #detail-panel h2 {
+    font-size: 1.08rem;
+  }
+
+  #detail-panel p {
+    font-size: 0.84rem;
+  }
+
+  #hud {
+    padding: 0.75rem 1rem 1rem;
+  }
+
+  #hud p {
+    font-size: 0.75rem;
+  }
+
+  #phase-label {
+    font-size: 0.68rem;
+  }
+
+  #floating-menu {
+    left: 16px;
+    top: 16px;
+  }
+
+  #overview-hint {
+    font-size: 0.65rem;
+  }
+
+  #detail-close {
+    width: 34px;
+    height: 34px;
+  }
+}
+
+
+
+
+
+
+
+/* ---------- DESKTOP BESAR (>= 1440px) ---------- */
+@media (min-width: 1440px) {
+
+  #detail-panel {
+    width: min(400px, calc(100vw - 40px));
+    max-height: min(75vh, 560px);
+    right: 24px;
+  }
+
+  .detail-content {
+    padding: 1.2rem 1.4rem;
+  }
+
+  #detail-panel h2 {
+    font-size: 1.25rem;
+  }
+
+  #detail-panel p {
+    font-size: 0.92rem;
+  }
+
+  #hud-inner {
+    max-width: 720px;
+  }
+
+  #hud p {
+    font-size: 0.85rem;
+  }
+
+  #phase-label {
+    font-size: 0.78rem;
+  }
+
+  #floating-menu {
+    left: 24px;
+    top: 24px;
+  }
+}
+
+
+/* ---------- TOUCH DEVICE IMPROVEMENTS ---------- */
+@media (hover: none) and (pointer: coarse) {
+
+  /* Sembunyikan tooltip di perangkat sentuh (tidak ada hover) */
+  #planet-tooltip {
+    display: none;
+  }
+
+  /* HUD: sesuaikan teks untuk kontrol sentuh */
+  #hud kbd {
+    padding: 0.1rem 0.35rem;
+    border-radius: 5px;
+  }
+
+  /* Detail close: bigger touch target */
+  #detail-close {
+    min-width: 44px;
+    min-height: 44px;
+  }
+}
+
+
+/* ---------- LANDSCAPE MOBILE (tinggi layar kecil) ---------- */
+@media (max-height: 420px) and (orientation: landscape) {
+
+  #detail-panel {
+    right: 8px;
+    top: 8px;
+    bottom: 8px;
+    left: auto;
+    transform: none;
+    width: min(260px, 38vw);
+    max-height: calc(100vh - 16px);
+    border-radius: 10px;
+    opacity: 0;
+    visibility: hidden;
+  }
+
+  #detail-panel.open {
+    opacity: 1;
+    visibility: visible;
+    transform: none;
+  }
+
+  #detail-panel h2 {
+    font-size: 0.92rem;
+    margin-bottom: 0.25rem;
+  }
+
+  #detail-panel p {
+    font-size: 0.72rem;
+    line-height: 1.35;
+  }
+
+  #hud {
+    padding: 0.3rem 0.5rem 0.4rem;
+  }
+
+  #hud p {
+    font-size: 0.6rem;
+  }
+
+  #phase-label {
+    font-size: 0.55rem;
+  }
+
+  #overview-hint {
+    font-size: 0.55rem;
+    top: 6px;
+  }
+}
+
+/* -----------------------------------------------
+ *  PLANET LABELS (STAY VISIBLE)
+ * ----------------------------------------------- */
+#planet-labels-container {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 11;
+  overflow: hidden;
+}
+
+.planet-label {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  color: #eaf2ff;
+  font-size: 0.82rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  padding: 0.35rem 0.65rem;
+  white-space: nowrap;
+  pointer-events: none;
+  transition: opacity 0.3s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Indikator titik dihilangkan agar sama persis dengan tooltip */
+.planet-label::before {
+  display: none;
+}

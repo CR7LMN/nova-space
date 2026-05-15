@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="id">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Exploration — Tata Surya Interaktif</title>
+
+  <!-- =============================================
+       CSS EKSTERNAL
+       Semua styling dipindahkan ke file terpisah
+       agar lebih mudah dipelihara dan di-debug.
+  ============================================== -->
+  <link rel="stylesheet" href="assets/css/style.css" />
+</head>
+
+<body>
+
+  <!-- ==============================================
+       INTRO OVERLAY (Splash Screen)
+       Layar pembuka yang ditampilkan saat halaman
+       pertama kali dimuat, sebelum scene 3D siap.
+       Akan di-fade-out oleh GSAP atau fallback JS.
+  =============================================== -->
+  <div id="intro" aria-hidden="true">
+    <h1>Tata Surya</h1>
+    <div class="line" aria-hidden="true"></div>
+    <p>Eksplorasi interaktif · Three.js</p>
+  </div>
+
+  <!-- ==============================================
+       CANVAS WRAPPER
+       Wadah untuk <canvas> Three.js yang mengisi
+       seluruh layar (100vh). Tidak ada scroll.
+  =============================================== -->
+  <div id="canvas-wrap"></div>
+
+  <!-- ==============================================
+       PLANET TOOLTIP
+       Nama planet yang muncul mengikuti kursor
+       saat user hover di atas objek 3D planet.
+  =============================================== -->
+  <div id="planet-tooltip" role="status" aria-live="polite"></div>
+
+  <!-- Container untuk label planet permanen -->
+  <div id="planet-labels-container"></div>
+
+  <!-- ==============================================
+       OVERVIEW HINT
+       Petunjuk kecil di atas layar yang muncul saat
+       user sedang fokus pada planet, memberitahu
+       cara kembali ke tampilan ringkasan.
+  =============================================== -->
+  <div id="overview-hint">Seret untuk putar · Scroll / Esc untuk kembali</div>
+
+  <!-- ==============================================
+       DETAIL PANEL
+       Panel informasi planet yang muncul di sisi
+       kanan layar saat planet diklik/difokuskan.
+       Berisi: label meta, judul, dan deskripsi.
+  =============================================== -->
+  <div id="detail-panel" aria-hidden="true">
+    <div class="detail-header">
+      <div class="detail-tabs">
+        <div id="tab-info" class="detail-tab active" title="Informasi Planet">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+            stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10"></circle>
+            <line x1="12" y1="16" x2="12" y2="12"></line>
+            <line x1="12" y1="8" x2="12.01" y2="8"></line>
+          </svg>
+          <span>Info</span>
+        </div>
+        <div class="detail-tab disabled"><span>Gallery</span></div>
+        <div class="detail-tab disabled"><span>Structure</span></div>
+      </div>
+      <div class="detail-actions">
+        <button type="button" id="btn-collapse-detail" class="detail-action-btn" title="Sembunyikan Panel">
+          <!-- Desktop Icon (<<) -->
+          <svg class="icon-desktop" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+            stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="11 17 6 12 11 7"></polyline>
+            <polyline points="18 17 13 12 18 7"></polyline>
+          </svg>
+          <!-- Mobile Icon (Down) -->
+          <svg class="icon-mobile" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+            stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="6 9 12 15 18 9"></polyline>
+          </svg>
+        </button>
+        <button type="button" id="detail-close" class="detail-action-btn close-btn" title="Tutup Fokus">&times;</button>
+      </div>
+    </div>
+
+    <div class="detail-content">
+      <div class="detail-meta" id="detail-meta"></div>
+      <h2 id="detail-title"></h2>
+      <div class="detail-divider"></div>
+      <div class="detail-section-title">DESKRIPSI</div>
+      <p id="detail-body"></p>
+
+      <!-- Mobile handle -->
+      <div class="mobile-drag-handle"></div>
+    </div>
+  </div>
+
+  <!-- Tombol untuk memunculkan kembali panel jika di-hide -->
+  <button id="btn-expand-detail" class="expand-detail-btn" title="Tampilkan Panel" aria-hidden="true">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+      stroke-linecap="round" stroke-linejoin="round">
+      <polyline points="13 17 18 12 13 7"></polyline>
+      <polyline points="6 17 11 12 6 7"></polyline>
+    </svg>
+  </button>
+
+  <!-- ==============================================
+      FLOATING MENU (TOOLBAR)
+      Menu melayang dengan ikon Sliders di atas,
+      membuka menu tambahan (Layers) ke bawah.
+  =============================================== -->
+  <div id="floating-menu" aria-label="Menu tampilan">
+    <button type="button" id="menu-toggle" class="toolbar-btn primary-btn" aria-expanded="false"
+      aria-controls="menu-dropdown" title="Pengaturan Tampilan">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+        stroke-linecap="round" stroke-linejoin="round">
+        <line x1="4" y1="21" x2="4" y2="14"></line>
+        <line x1="4" y1="10" x2="4" y2="3"></line>
+        <line x1="12" y1="21" x2="12" y2="12"></line>
+        <line x1="12" y1="8" x2="12" y2="3"></line>
+        <line x1="20" y1="21" x2="20" y2="16"></line>
+        <line x1="20" y1="12" x2="20" y2="3"></line>
+        <line x1="1" y1="14" x2="7" y2="14"></line>
+        <line x1="9" y1="8" x2="15" y2="8"></line>
+        <line x1="17" y1="16" x2="23" y2="16"></line>
+      </svg>
+    </button>
+
+    <div id="menu-dropdown" class="toolbar-menu" aria-hidden="true">
+      <button type="button" id="btn-layers" class="toolbar-btn" aria-expanded="false" aria-controls="layers-panel"
+        title="Layers">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+          stroke-linecap="round" stroke-linejoin="round">
+          <polygon points="12 2 2 7 12 12 22 7 12 2"></polygon>
+          <polyline points="2 12 12 17 22 12"></polyline>
+          <polyline points="2 17 12 22 22 17"></polyline>
+        </svg>
+      </button>
+    </div>
+
+    <!-- ==============================================
+        LAYERS PANEL
+        Panel opsi yang menggantikan tombol layers.
+    =============================================== -->
+    <div id="layers-panel" class="layers-panel" aria-hidden="true">
+      <div class="layers-header" id="btn-close-layers" title="Tutup Layers">
+        <span>Layers</span>
+      </div>
+      <div class="layers-content">
+        <label class="layer-option">
+          <input type="checkbox" id="toggle-orbit-lines" checked />
+          <span class="custom-checkbox"></span>
+          <span class="label-text">Garis orbit</span>
+        </label>
+        <label class="layer-option">
+          <input type="checkbox" id="toggle-latitude-lines" checked />
+          <span class="custom-checkbox"></span>
+          <span class="label-text">Garis lintang</span>
+        </label>
+        <label class="layer-option">
+          <input type="checkbox" id="toggle-starfield" checked />
+          <span class="custom-checkbox"></span>
+          <span class="label-text">Bintang (Starfield)</span>
+        </label>
+        <label class="layer-option">
+          <input type="checkbox" id="toggle-auto-follow" />
+          <span class="custom-checkbox"></span>
+          <span class="label-text">Auto-follow planet</span>
+        </label>
+        <label class="layer-option">
+          <input type="checkbox" id="toggle-planet-labels" checked />
+          <span class="custom-checkbox"></span>
+          <span class="label-text">Label planet</span>
+        </label>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==============================================
+       TIME CONTROLS (NEW BOTTOM CENTER)
+  =============================================== -->
+  <div id="time-controls-wrapper" class="time-controls-wrapper">
+    <div id="time-panel" class="time-panel">
+      <div class="time-display">
+        <div id="tc-date" class="time-text">DEC 31, 2049</div>
+        <div id="tc-status" class="time-status status-paused">PAUSED</div>
+        <div id="tc-time" class="time-text">06:59:59 AM</div>
+      </div>
+
+      <div class="slider-container" id="custom-slider">
+        <!-- SVG Curve -->
+        <svg class="slider-curve" viewBox="0 0 400 40" preserveAspectRatio="none">
+          <path d="M 0 35 Q 200 5 400 35" fill="none" stroke="rgba(255,255,255,0.25)" stroke-width="2"></path>
+        </svg>
+        <div id="custom-thumb" class="custom-thumb">
+          <div class="thumb-inner"></div>
+        </div>
+      </div>
+    </div>
+
+    <button id="time-toggle-btn" class="time-toggle-btn">
+      <svg id="time-toggle-icon" viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" stroke-width="2"
+        fill="none" stroke-linecap="round" stroke-linejoin="round">
+        <polyline points="6 9 12 15 18 9"></polyline>
+      </svg>
+      <span>TIME CONTROLS</span>
+    </button>
+  </div>
+
+  <!-- ==============================================
+       HUD (Heads-Up Display)
+       Panel petunjuk di bagian bawah layar yang
+       menampilkan kontrol interaksi yang tersedia
+       (hover, klik, seret, scroll, dsb).
+  =============================================== -->
+  <div id="hud">
+    <div id="hud-inner">
+      <div id="phase-label">Eksplorasi Tata Surya Interaktif</div>
+      <p>
+        <kbd>Hover</kbd> nama planet · <kbd>Klik</kbd> fokus ke planet ·
+        <kbd>Seret</kbd> putar pandangan · <kbd>Scroll</kbd> zoom ·
+        <kbd>Esc</kbd> kembali
+      </p>
+    </div>
+  </div>
+
+  <!-- ==============================================
+       DEPENDENSI EKSTERNAL
+       - GSAP: library animasi untuk transisi kamera
+       - Three.js: import map untuk ES module
+  =============================================== -->
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/gsap.min.js"></script>
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+        "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+      }
+    }
+  </script>
+
+  <!-- ==============================================
+       SCRIPT APLIKASI
+       1. intro.js  — Fallback intro (non-module, jalan duluan)
+       2. app.js    — Logika utama Three.js (ES module)
+  =============================================== -->
+  <script src="assets/js/intro.js"></script>
+  <script type="module" src="assets/js/app.js"></script>
+
+</body>
+
+</html>
